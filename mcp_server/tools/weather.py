@@ -1,25 +1,61 @@
-import os
-import requests
-from langchain.tools import tool
-from dotenv import load_dotenv
+from mcp_server.utils.server import mcp
+from mcp_server.utils.weather import make_nws_request, format_alert
 
-load_dotenv()
+NWS_API_BASE = "https://api.weather.gov"
 
-@tool
-def get_weather(location: str) -> str:
+@mcp.tool("get_alerts")
+async def get_alerts(state: str) -> str:
+    """Get weather alerts for a US state.
+
+    Args:
+        state: Two-letter US state code (e.g. CA, NY)
     """
-    Fetches the current weather for a given location.
+    url = f"{NWS_API_BASE}/alerts/active/area/{state}"
+    data = await make_nws_request(url)
+
+    if not data or "features" not in data:
+        return "Unable to fetch alerts or no alerts found."
+
+    if not data["features"]:
+        return "No active alerts for this state."
+
+    alerts = [format_alert(feature) for feature in data["features"]]
+    return "\n---\n".join(alerts)
+
+
+
+@mcp.tool("get_forecast")
+async def get_forecast(latitude: float, longitude: float) -> str:
+    """Get weather forecast for a location.
+
+    Args:
+        latitude: Latitude of the location
+        longitude: Longitude of the location
     """
-    api_key = os.getenv("OPENWEATHER_API_KEY")
-    if not api_key:
-        return "OpenWeather API key is not set."
+    # forecast grid endpoint
+    points_url = f"{NWS_API_BASE}/points/{latitude},{longitude}"
+    points_data = await make_nws_request(points_url)
 
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={location}&appid={api_key}&units=metric"
-    response = requests.get(url)
-    if response.status_code != 200:
-        return f"Error fetching weather data: {response.text}"
+    if not points_data:
+        return "Unable to fetch forecast data for this location."
 
-    data = response.json()
-    weather = data["weather"][0]["description"]
-    temp = data["main"]["temp"]
-    return f"The current weather in {location} is {weather} with a temperature of {temp}°C."
+    # forecast URL from the points response
+    forecast_url = points_data["properties"]["forecast"]
+    forecast_data = await make_nws_request(forecast_url)
+
+    if not forecast_data:
+        return "Unable to fetch detailed forecast."
+
+    # Format the periods into a structured forecast
+    periods = forecast_data["properties"]["periods"]
+    forecasts = []
+    for period in periods[:7]:  # Show data for next 7 'periods' returned from nws api
+        forecast = f"""
+{period['name']}:
+Temperature: {period['temperature']}°{period['temperatureUnit']}
+Wind: {period['windSpeed']} {period['windDirection']}
+Forecast: {period['detailedForecast']}
+"""
+        forecasts.append(forecast)
+
+    return "\n---\n".join(forecasts)
