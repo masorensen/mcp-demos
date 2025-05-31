@@ -24,3 +24,13 @@ test-coverage-html:
 
 test-verbose:
 	uv run pytest -vvs
+
+clean:
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	find . -type f -name "*.pyo" -delete 2>/dev/null || true
+	find . -type f -name ".coverage" -delete 2>/dev/null || true
+	find . -type f -name "coverage.xml" -delete 2>/dev/null || true
+	rm -rf htmlcov/ 2>/dev/null || true
+	@echo "Cache and test artifacts cleaned"

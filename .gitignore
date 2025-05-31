@@ -19,4 +19,4 @@ htmlcov/
 
 # local scripts
 scripts/
-*.md
+CLAUDE.md
