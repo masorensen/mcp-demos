@@ -9,3 +9,14 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# test artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# local scripts
+scripts/
+*.md
